@@ -1,0 +1,660 @@
+﻿
+@model DAL.Model.SQHD
+@using DAL
+@{
+    ViewBag.Title = "Create";
+    const string documentViewerName = "documentViewer";
+}
+<style>
+    fieldset {
+        margin: 0px;
+        padding: 1px;
+    }
+
+    table, th, td {
+        border: 1px solid white;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        background-color: #96D4D4;
+    }
+
+    .flex-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .flex-row-container {
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+    }
+
+    .flex-row {
+        flex: 1;
+    }
+
+    .flex-child {
+        flex: 2;
+        border: 2px solid yellow;
+    }
+
+    .flex-second {
+        flex: 1;
+        border: 2px solid yellow;
+        background-color: #96D4D4;
+        height: 150px;
+    }
+
+    .flex-child:first-child {
+        margin-right: 20px;
+    }
+</style>
+
+<div id="app">
+    <div class="panel panel-default">
+        <div class="panel-heading"><h4>SalesQuotation</h4><h4> @Html.ActionLink("Print", "PrintReceipt", "Reports", null, new { target = "_blank", @class = "pull-right" })</h4> </div>
+        <div class="panel-body">
+            @using (Html.BeginForm("Create", "SalesQuotation", FormMethod.Post, new { @class = "form-horizontal", id = "Form", enctype = "multipart/form-data" }))
+            {
+                @Html.AntiForgeryToken()
+                <fieldset>
+                    <input type="hidden" v-model="ItemDescription" id="hfItemDescription" name="ItemDescription" />
+                    <input type="hidden" v-model="ItemNo" id="hfItemNo" name="ItemNo" />
+                    <input type="hidden" v-model="SQHD.DocNum" id="hfDocNum" name="DocNum"/>
+                    <input type="hidden" v-model="SQHD.CustomerName" id="hfCustomerName" name="CustomerName" />
+                    <input type="hidden" v-model="SQHD.CustomerCode" id="hfCustomerCode" name="CustomerCode" />
+                    <div class="form-row">
+                        <div class="form-group col-md-3 has-success">
+                            <label class="control-label">Customer</label>
+                            <select class="form-control" id="ddlSupplier"></select>
+                        </div>
+                        <div class="form-group col-md-3 has-success">
+                            <label class="control-label">DocDate</label>
+                            <input type="text" id="txtDocDate" v-model="SQHD.DocDate" class="form-control" name="SQHD.DocDate" />
+                        </div>
+                        <div class="form-group col-md-3 has-success">
+                            <label class="control-label">RefNo</label>
+                            <input type="text" id="txtRefNo" v-model="SQHD.RefNo" class="form-control" disabled="CaptureReference" name="SQHD.RefNo" />
+                        </div>
+                        <div class="form-group col-md-3 has-success">
+                            <label class="control-label">SalesPerson</label>
+                            @*<input type="text" id="txtSalesMan" v-model="CSHD.SalesMan" class="form-control" name="CSHD.SalesMan" />*@
+                            <select v-model="SQHD.SalesManCode" class="form-control" id="ddlSalesMan" disabled="CaptureSalesMan">
+                                <option v-for="sl in Sales" v-bind:key="sl.Value" v-bind:value="sl.Value"> {{ sl.Text }} </option>
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <div class="table-responsive table-bordered mb-sm" style="border:1px">
+                        <table id="tblTrans" class="table" name="SQHD.Detail" style="font-family:Verdana;font-size:small">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        #
+                                    </th>
+                                    <th>ItemNo</th>
+                                    <th>Description</th>
+                                    <th>Pack</th>
+                                    <th>Cost</th>
+                                    <th>SOH</th>
+                                    <th>Qty</th>
+                                    <th>VAT</th>
+                                    <th>VAT Amt</th>
+                                    <th>Disc %</th>
+                                    <th>Disc Amt</th>
+                                    <th>Total</th>
+                                    <th>
+                                        Action
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td colspan="2">
+                                        <div class="">
+                                            <select class="form-control" id="ddlItemNo"></select>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select v-model="Pack" class="form-control" name="ddlPack">
+                                            <option v-for="uom in UOM.items" v-bind:key="uom.Code" v-bind:value="uom.Code"> {{ uom.Description }} </option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="">
+                                            <input type="text" id="txtUnitPrice" v-model="UnitCost" class="form-control" name="UnitCost" @@change="computeTotals()" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" id="txtAvailableQty" v-model="AvailableQty" class="form-control" name="AvailableQty" readonly="readonly" />
+                                    </td>
+                                    <td>
+                                        <div class="">
+                                            <input type="text" id="txtQty" v-model="Quantity" class="form-control" name="Quantity" @@change="computeTotals()" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <input type="text" id="txtVatCode" v-model="TaxCode" class="form-control" name="TaxCode" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <input type="text" id="txtTaxSum" v-model="TaxSum" class="form-control" name="TaxSum" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" id="txtDiscPer" v-model="Discount" class="form-control" name="Discount" @@change="computeTotals()" />
+                                    </td>
+                                    <td>
+                                        <input type="text" id="txtDiscAmt" v-model="DiscountAmount" class="form-control" name="DiscountAmount" @@change="computeTotals()" />
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <input type="text" id="txtLineTotal" v-model="LineTotal" class="form-control" name="LineTotal" />
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <button type="button" class="btn btn-oval btn-success" v-on:click="addTrans" id="btnAdd" style="font-family:Verdana">ADD</button>
+                                        @*<a href="#!" @@click="addTrans" class="btn btn-waves green darken-2"><i class="material-icons">add</i></a>*@
+                                    </td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(item,index) in SQHD.Detail" key="index">
+                                    <td>{{index}}</td>
+                                    <td><p>{{item.ItemNo}}</p> </td>
+                                    <td><p>{{item.ItemDescription}}</p></td>
+                                    <td><p>{{item.UOM}}</p></td>
+                                    <td><p>{{item.UnitCost}}</p></td>
+                                    <td><p></p></td>
+                                    <td><p>{{item.Quantity}}</p></td>
+                                    <td><p>{{item.TaxCode}}</p></td>
+                                    <td><p>{{item.TaxSum}}</p></td>
+                                    <td><p>{{item.Discount}}</p></td>
+                                    <td><p>{{item.DiscountAmount}}</p></td>
+                                    <td><p>{{item.LineTotal}}</p></td>
+                                    @*<td><input type="text" v-model="item.ItemNo" name="'CSHD.Detail['+ index +'].ItemNo'" class="form-control" readonly="readonly" /> </td>*@
+                                    @*<td><input type="text" v-model="item.ItemDescription" name="'CSHD.Detail['+ index +'].ItemDescription'" class="form-control" readonly="readonly" /></td>
+                                        <td><input type="text" v-model="item.Pack" name="'CSHD.Detail['+ index +'].Pack'" class="form-control" readonly="readonly" /></td>
+                                        <td><input type="text" v-model="item.Quantity" name="'CSHD.Detail['+ index +'].Quantity'" class="form-control" /></td>*@
+                                    <td>
+                                        <button class="btn btn-oval btn-danger" v-on:click="removeItem(index)" id="btnDelete">Delete</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    @*<div class="form-row" style="background-color: #96D4D4">*@
+                    @*<div class="col-sm-offset-8 col-sm-4 pv">*@
+
+                    <div class="form-row" style="background-color: #96D4D4">
+                        <div class="clearfix">
+                            <p class="pull-left">Net Amount</p>
+                            <p class="pull-right mr">{{SQHD.TotalBeforeTax}}</p>
+                        </div>
+                        <div class="clearfix">
+                            <p class="pull-left">VAT Amount</p>
+                            <p class="pull-right mr">{{SQHD.TaxSum}}</p>
+                        </div>
+                        <div class="clearfix">
+                            <p class="pull-left">Discount</p>
+                            <p class="pull-right mr">{{SQHD.DiscountAmount}}</p>
+                        </div>
+                        <div class="clearfix">
+                            <p class="pull-left h3">GRAND TOTAL</p>
+                            <p class="pull-right mr h3">{{SQHD.LineTotal}}</p>
+                        </div>
+                    </div>
+                    @*</div>*@
+                </fieldset>
+
+                <div class="clearfix">
+                    <button type="button" class="btn btn-success pull-right" v-on:click="saveSale()">Save Sale</button>
+                </div>
+                @*<div class="form-group">
+                        <div class="col-md-offset-2 col-md-10">
+                            <button type="submit" class="btn btn-primary">
+                                Submit
+                            </button>
+                        </div>
+                    </div>*@
+            }
+        </div>
+    </div>
+</div>
+@section Styles {
+    @Styles.Render("~/bundles/datetimePickerCss")
+    @Styles.Render("~/bundles/select2Css")
+    @Styles.Render("~/bundles/jqGridCss")
+}
+@section Scripts {
+    @Scripts.Render("~/bundles/moment")
+    @Scripts.Render("~/bundles/datetimePicker")
+    @Scripts.Render("~/bundles/select2")
+    @Scripts.Render("~/bundles/jqueryUi")
+}
+@section pagespecific {
+    @*@Scripts.Render("~/bundles/jqueryui")
+        @Styles.Render("~/Content/cssjqryUi")
+        @Scripts.Render("~/bundles/jqueryval")
+        @Scripts.Render("~/bundles/modalform")*@
+    <script type="text/javascript">
+        $(document).ready(function () {
+            function getDocNum() {
+                return document.getElementById('hfDocNum').value;
+            }
+            let app = new Vue({
+                el: '#app',
+                data() {
+                    return {
+                        //Sales: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.SalesMan, Newtonsoft.Json.Formatting.None)),
+                        Sales: @Html.Raw(Json.Encode(ViewBag.SalesMan)),
+                        CaptureSalesMan:@Html.Raw(Json.Encode(ViewBag.CaptureSalesMan)),
+                        CaptureReference:@Html.Raw(Json.Encode(ViewBag.CaptureReference)),
+                        SQHD:{
+                            Detail: @Html.Raw(Json.Encode(Model.Detail)),
+                            CompCode:'@(ViewBag.CompCode)',
+                            CostCentreCode:'@(ViewBag.CostCenter)',
+                            DocNum:'@Model.DocNum',
+                            CustomerCode:'@Model.CustomerCode',
+                            CustomerName:'@Model.CustomerName',
+                            DocDate:new Date().toISOString().slice(0,10),
+                            RefNo:'@(ViewBag.RefNo)',
+                            SalesManCode:'@Model.SalesManCode',
+                            DiscSum:'@Model.DiscSum',
+                            TotalBeforeTax:'@Model.TotalBeforeTax',
+                            TaxSum:'@Model.TaxSum',
+                            LineTotal:'@Model.LineTotal',
+                            INVStatus :'@Model.INVStatus',
+                            AmountPaid:'@Model.AmountPaid',
+                            CreatedBy:'@(ViewBag.UserID)',
+                            UpdatedBy:'@(ViewBag.UserID)',
+                            WorkStation:'PC',
+                            QTStatus:'@Model.QTStatus',
+                            INVQTY:'@Model.INVQTY',
+                            INVDocNum:'@Model.INVDocNum'
+
+                        },
+                        DocNum:'',
+                        CustomerCode:'',
+                        CustomerName:'',
+                        DocDate:'',
+                        RefNo:'',
+                        ItemNo:'',
+                        ItemDescription:'',
+                        Quantity:0,
+                        PackSize:[],
+                        UnitCost:0,
+                        Discount:0,
+                        DiscountAmount:0,
+                        TaxCode:0,
+                        TotalBeforeTax:0,
+                        TaxSum:0,
+                        LineTotal:0,
+                        LineNumber:0,
+                        CreatedBy:'',
+                        UpdatedBy:'',
+                        WorkStation:'PC',
+                        AVGCost:0,
+                        SellingPrice:0,
+                        TotalCOS:0,
+                        Pack:0,
+                        Margin:0,
+                        UOM:[],
+                        AvailableQty:0
+
+                    }
+                },
+                mounted() {
+                    console.log('Component mounted.');
+                    let selfInstance = this;
+                    $('#txtDocDate').datepicker({
+                        dateFormat: 'dd/mm/yy',
+                        showStatus: true,
+                        showWeeks: true,
+                        highlightWeek: true,
+                        numberOfMonths: 1,
+                        showOtherMonths: true,
+                        autoclose: true,
+                        changeMonth: true,
+                        changeYear: true,
+                        yearRange: "-1:+0",
+                        showAnim: "scale",
+                        maxDate: new Date,
+                        onSelect: function(selected, datePicker) {
+                            selfInstance.SQHD.DocDate = selected;
+                        }
+                    });
+                    $("#ddlSalesMan").select2({closeOnSelect: true,theme: 'bootstrap'}).on('change', function() {
+                        app.SQHD.SalesManCode= $(this).val();
+                    });
+
+                },
+                methods: {
+                    addTrans: function (event) {
+                        //var mySysName  = $.getenv('computername');
+                        //console.log(mySysName);
+                        if (this.ItemNo==''){
+                            alert("Select ItemNo");
+                            return;
+                        }
+                        if (this.Quantity==''){
+                            alert("Enter Quantity");
+                            return;
+                        }
+                        if (this.UnitCost==''){
+                            alert("UnitCost is empty");
+                            return;
+                        }
+                        event.preventDefault();
+                        let newItem = {
+                            CompCode:this.SQHD.CompCode,
+                            CostCentreCode:this.SQHD.CostCentreCode,
+                            CustomerCode:this.SQHD.CustomerCode,
+                            CustomerName:this.SQHD.CustomerName,
+                            ItemNo: this.ItemNo,
+                            ItemDescription: this.ItemDescription,
+                            Quantity: this.Quantity,
+                            Pack: this.Pack,
+                            UnitCost: this.UnitCost,
+                            DiscountAmount: this.DiscountAmount,
+                            Discount: this.Discount,
+                            TaxCode: this.TaxCode,
+                            TaxSum: (Number(this.Quantity) * Number(this.UnitCost))-(Number(this.Quantity) * Number(this.UnitCost) * Number(100))/(Number(100) + Number(this.TaxCode)),
+                            LineTotal:this.LineTotal, //Number(this.Quantity) * Number(this.UnitPrice),
+                            LineNumber: Number(this.LineNumber) + 1,
+                            TotalCOS: Number(this.Quantity) * Number(this.UnitCost),
+                            TotalPCs: Number(this.PackSize) * Number(this.Quantity),
+                            TotalBeforeTax: (Number(this.Quantity) * Number(this.UnitCost) * Number(100))/(Number(100) + Number(this.TaxCode)),
+                            RefNo:this.SQHD.RefNo,
+                            DocDate:this.SQHD.DocDate,
+                            DocNum:this.SQHD.DocNum,
+                            CreatedBy:this.SQHD.CreatedBy,
+                            UpdatedBy:this.SQHD.UpdatedBy,
+                            WorkStation:'PC'
+
+                        };
+                        console.log(newItem);
+                        this.SQHD.Detail.push(newItem);
+                        this.clearItem();
+                        console.log(this.SQHD.Detail);
+                        this.sumTotal();
+                        this.LineNumber=Number(this.LineNumber) + 1;
+                    },
+                    clearItem(){
+                        this.ItemNo='';
+                        this.ItemDescription='';
+                        this.Quantity=0;
+                        this.Pack='';
+                        this.UnitCost=0;
+                        this.DiscountAmount=0;
+                        this.TaxCode='';
+                        this.TaxSum=0;
+                        this.LineTotal=0;
+                        this.TotalPCs=0;
+                        //this.LineNumber=0;
+                        this.TotalBeforeTax=0;
+                        this.Discount=0;
+                        this.AvailableQty=0;
+                        $("#ddlItemNo").val(this.ItemNo).trigger('change.select2');
+                    },
+                    clearCart(){
+                        this.SQHD.DocNum=0;
+                        this.SQHD.RefNo='';
+                        this.SQHD.AmountPaid=0;
+                        this.SQHD.TaxSum=0;
+                        this.SQHD.LineTotal=0;
+                        this.SQHD.TotalBeforeTax=0;
+                        this.SQHD.TotalCOS;
+                        this.SQHD.DiscountAmount=0;
+                        this.SQHD.INVStatus='P';
+                        this.SQHD.Detail.splice(0);
+                        this.LineNumber=0;
+                        this.SQHD.SalesManCode='';
+                        this.ItemNo='';
+                        this.ItemDescription='';
+                        $("#ddlSalesMan").val(this.SQHD.SalesManCode).trigger('change.select2');
+                        $("#ddlItemNo").val(this.ItemNo).trigger('change.select2');
+                    },
+                    removeItem: function (i) {
+                        event.preventDefault();
+                        this.SQHD.Detail.splice(i, 1);
+                        this.sumTotal();
+                    },
+
+                    //launchModel: function (d) {
+                    //    $('#moreDetailModal').modal('show');
+                    //},
+                    //getText: function (v) {
+                    //    let vm = this;
+                    //    let filter = vm.items.filter(function (d) { return d.Value == v });
+                    //    if (filter.length > 0)
+                    //        return filter[0].Text;
+                    //    return v;
+                    //},
+                    sumTotal() {
+                        let grid_total = 0;
+                        let net_total = 0;
+                        let tax_total = 0;
+                        let total_cost = 0;
+                        let total_discount = 0;
+                        this.SQHD.Detail.forEach(val => {
+                            net_total += Number(val.TotalBeforeTax);
+                            tax_total += Number(val.TaxSum);
+                            grid_total += Number(val.LineTotal);
+                            total_cost += Number(val.TotalCOS);
+                            total_discount += Number(val.DiscountAmount);
+                            //or if you pass float numbers , use parseFloat()
+                        });
+                        console.log(grid_total);
+                        //this.gridTotal = grid_total;
+                        this.SQHD.TotalBeforeTax=parseFloat(net_total).toFixed(2);
+                        this.SQHD.TaxSum=parseFloat(tax_total).toFixed(2);
+                        this.SQHD.LineTotal=parseFloat(grid_total).toFixed(2);
+                        this.SQHD.DiscountAmount=parseFloat(total_discount).toFixed(2);
+                    },
+                    saveSale: function () {
+                        console.log(this.SQHD);
+                        if (this.SQHD.DocDate==''){
+                            alert("Select DocDate");
+                            return;
+                        }
+                        if (this.SQHD.RefNo=='' && this.CaptureReference==false){
+                            alert("Enter Reference");
+                            return;
+                        }
+                        //if (this.SQHD.SalesManCode=='' && this.CaptureSalesMan==false){
+                        //    alert("Select SalesMan");
+                        //    return;
+                        //}
+                        if (this.SQHD.Detail.length==0 ){
+                            alert("No item in the cart");
+                            return;
+                        }
+                        axios.post('/SalesQuotation/Create',this.SQHD).then((response) => {
+                            console.log(response.data);
+                            console.log(response.data.data.Code);
+                            console.log(response.data.data.Message);
+                            if(response.data.data.Code==200){
+                                toastr.success("Sale successfully saved");
+                                this.clearCart();
+                            }
+                            else{
+                                toastr.error(response.data.data.Message);
+                            }
+                        }).catch((error) =>
+                            console.log(error)
+                        );
+                    },
+                    getUOMs: function() {
+                        console.log(this.ItemNo);
+                        axios.get('/ItemMaster/GetUOMPerProduct',{params: {
+                            ItemNo: this.ItemNo
+                        }})
+                            .then((response) => {
+                                // handle success
+                                console.log(response.data);
+                                this.UOM=response.data;
+                                console.log(this.UOM.items);
+
+                            });
+                    },
+                    getProductDetails: function() {
+                        console.log(this.ItemNo);
+                        if (this.ItemNo==""){
+                            return;
+                        }
+                        axios.get('/ItemMaster/GetProductDetails',{params: {
+                            ItemNo: this.ItemNo,
+                            Pack:this.Pack
+                        }})
+                            .then((response) => {
+                                // handle success
+                                console.log("Item No "+ this.ItemNo)
+                                console.log(response.data);
+                                this.TaxCode=response.data.items[0].TaxCode;
+                                this.Pack=response.data.items[0].Pack;
+                                this.UnitCost=response.data.items[0].UnitCost;
+                                this.AvailableQty=response.data.items[0].AvailableQty;
+
+                            });
+                    },
+                    computeTotals(){
+                        this.TaxSum= (Number(this.Quantity) * Number(this.UnitCost))-(Number(this.Quantity) * Number(this.UnitCost) * Number(100))/(Number(100) + Number(this.TaxCode));
+                        if(this. Discount !=""){
+                            this.DiscountAmount=Math.floor((Number(this. Discount)/Number(100))* this.LineTotal);
+                        }
+                        console.log(this.DiscountAmount);
+                        this.LineTotal= (Number(this.Quantity) * Number(this.UnitCost))-Number(this.DiscountAmount);
+
+                    }
+                    //validateObject(customer) {
+                    //    return Object.keys(customer).length > 0;
+                    //}
+                },
+                watch:{
+                    ItemNo: function(oldVal, newVal) {
+                        console.log(oldVal + " " + newVal);
+                        this.Pack='';
+                        this.getUOMs();
+                    },
+                    Pack: function(oldVal, newVal) {
+                        console.log(oldVal + " " + newVal);
+                        this.getProductDetails();
+                    }
+                }
+            });
+            //$('#moreDetailModal').on('hidden.bs.modal', function () {
+
+            //});
+
+            // DO NOT REMOVE : GLOBAL FUNCTIONS!
+            @if (TempData["Success"] !=null) {
+                if (TempData["Success"].ToString() == "Success") {
+                    @:toastr.success("@TempData["Message"]");
+                                                                                                                                                                                                                                    } else if (TempData["Success"].ToString() == "Fail") {
+                        @:toastr.error("@TempData["Message"]");
+                                                                                                                                                                                                                                    }
+                else if(TempData["Success"].ToString() == "Warning") {
+                        @:toastr.error("@TempData["Message"]");
+                                                                                                                                                                                                                                    }
+                 }
+        });
+        $(document).ready(function () {
+            //$.fn.select2.defaults.set("theme", "bootstrap");
+            $("#ddlSalesMan").select2({
+                closeOnSelect: true,
+                allowClear: true,
+                theme: 'bootstrap'
+            });
+            $("#ddlItemNo").change(function ()
+            {
+                var lName = $("#ddlItemNo option:selected").text();
+                var lValue = $("#ddlItemNo option:selected").val();
+                $("#hfItemDescription").val(lName)[0].dispatchEvent(new Event('input'));
+                $("#hfItemNo").val(lValue)[0].dispatchEvent(new Event('input'));
+
+            });
+            $("#ddlSupplier").change(function ()
+            {
+                var lName = $("#ddlSupplier option:selected").text();
+                var lValue = $("#ddlSupplier option:selected").val();
+                $("#hfCustomerName").val(lName)[0].dispatchEvent(new Event('input'));
+                $("#hfCustomerCode").val(lValue)[0].dispatchEvent(new Event('input'));
+
+            });
+            $("#ddlItemNo").select2({
+                closeOnSelect: true,
+                allowClear: true,
+                theme: 'bootstrap',
+                ajax: {
+                    url: "/ItemMaster/GetProducts",
+                    width: 'resolve',
+                    data: function (params) {
+                        var query = {
+                            q: params.term
+                        }
+                        // Query parameters will be ?search=[term]&page=[page]
+                        return query;
+                    },
+                    processResults: function (result) {
+                        console.log(result);
+                        return {
+                            results: result.items
+                            //results: $.map(result, function (item) {
+                            //return {
+                            //id: item.ItemNo,
+                            //text: item.ItemDescription
+                            // };
+                            //}),
+                        };
+                    },
+                    minimumInputLength: 2,
+                    width: 'resolve',
+                    cache: true
+                }
+            });
+            $("#ddlSupplier").select2({
+                closeOnSelect: true,
+                allowClear: true,
+                theme: 'bootstrap',
+                ajax: {
+                    url: "/SalesQuotation/GetCustomers",
+                    width: 'resolve',
+                    data: function (params) {
+                        var query = {
+                            q: params.term
+                        }
+                        // Query parameters will be ?search=[term]&page=[page]
+                        return query;
+                    },
+                    processResults: function (result) {
+                        console.log(result);
+                        return {
+                            results: result.items
+                            //results: $.map(result, function (item) {
+                            //return {
+                            //id: item.ItemNo,
+                            //text: item.ItemDescription
+                            // };
+                            //}),
+                        };
+                    },
+                    minimumInputLength: 2,
+                    width: 'resolve',
+                    cache: true
+                }
+            });
+
+        });
+
+    </script>
+}
+
+
+
+
